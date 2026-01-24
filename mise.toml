@@ -1,2 +1,4 @@
 [tools]
-rust = {version = "1.91", components = "rust-analyzer"}
+node = "24"
+pnpm = "10"
+# rust = {version = "1.91", components = "rust-analyzer"}
