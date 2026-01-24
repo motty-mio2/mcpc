@@ -7,7 +7,7 @@ import {
   ReadResourceRequestSchema,
   ListPromptsRequestSchema,
   GetPromptRequestSchema,
-  CallToolResult,
+  type CallToolResult,
 } from '@modelcontextprotocol/sdk/types.js';
 import { Router } from './router.js';
 

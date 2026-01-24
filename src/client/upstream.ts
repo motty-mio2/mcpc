@@ -1,6 +1,6 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { ServerConfig } from '../config/schema.js';
+import type { ServerConfig } from '../config/schema.js';
 
 export class UpstreamClient {
   public readonly id: string;
@@ -18,11 +18,7 @@ export class UpstreamClient {
         version: '1.0.0',
       },
       {
-        capabilities: {
-          tools: {},
-          resources: {},
-          prompts: {},
-        },
+        capabilities: {},
       }
     );
   }
@@ -32,13 +28,20 @@ export class UpstreamClient {
    * Currently supports stdio.
    */
   async connect(): Promise<void> {
+    // Filter env to remove undefined values to satisfy Record<string, string>
+    const env: Record<string, string> = {};
+    const mergedEnv = { ...process.env, ...this.config.env };
+    
+    for (const [key, value] of Object.entries(mergedEnv)) {
+        if (value !== undefined) {
+            env[key] = value;
+        }
+    }
+
     const transport = new StdioClientTransport({
       command: this.config.command,
       args: this.config.args,
-      env: {
-        ...process.env,
-        ...this.config.env
-      }
+      env
     });
 
     try {

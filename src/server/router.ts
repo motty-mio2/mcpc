@@ -1,6 +1,6 @@
 import { UpstreamClient } from '../client/upstream.js';
 import { NamespaceUtils } from './namespace.js';
-import { Tool, Resource, Prompt, CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import type { Tool, Resource, Prompt, CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
 export class Router {
   private clients: Map<string, UpstreamClient>;
@@ -122,7 +122,7 @@ export class Router {
       throw new Error(`Unknown server prefix: ${target.serverId}`);
     }
 
-    return await client.callTool(target.name, args);
+    return (await client.callTool(target.name, args)) as CallToolResult;
   }
 
   /**

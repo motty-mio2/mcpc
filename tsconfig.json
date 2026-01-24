@@ -44,5 +44,8 @@
     "moduleResolution": "node16",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-  }
+    "resolveJsonModule": true,
+    "types": ["node"]
+  },
+  "exclude": ["tests"]
 }
