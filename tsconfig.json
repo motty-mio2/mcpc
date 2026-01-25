@@ -47,5 +47,6 @@
     "resolveJsonModule": true,
     "types": ["node"]
   },
-  "exclude": ["tests"]
+  "exclude": ["tests"],
+  "include": ["src"]
 }
