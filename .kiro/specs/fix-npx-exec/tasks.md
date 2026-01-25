@@ -10,9 +10,11 @@
 
 - [x] 3. Enable Git Installation Build
   - [x] 3.1 Add `"prepare": "npm run build"` to `package.json` scripts
-    - This ensures `dist` is generated when installed from Git.
 
-- [x] 4. Validation
-  - [x] 4.1 Run `pnpm build`
-  - [x] 4.2 Test execution via `node dist/index.js`
-  - [ ] 4.3 (Manual) Verify `npx github:...` works after push (User task)
+- [x] 4. Fix Dependencies for Git Install
+  - [x] 4.1 Move `typescript` and `@types/node` from `devDependencies` to `dependencies`
+    - This ensures build tools are available during `prepare` execution in all environments.
+
+- [x] 5. Validation
+  - [x] 5.1 Run `pnpm build`
+  - [x] 5.2 Test execution via `node dist/index.js`
