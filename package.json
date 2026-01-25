@@ -3,6 +3,12 @@
   "version": "1.0.0",
   "description": "",
   "main": "dist/index.js",
+  "bin": {
+    "mcpc": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "test": "vitest --run",
     "build": "tsc",
