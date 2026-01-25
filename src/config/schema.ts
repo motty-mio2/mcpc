@@ -1,24 +1,32 @@
 import { z } from 'zod';
 
 // Zod Schema for the configuration file format
+// Supports both Stdio (command, args) and SSE (url)
 export const ConfigSchema = z.object({
   tags: z.array(z.string()).default([]),
-  mcpServers: z.record(z.string(), z.object({
-    command: z.string(),
-    args: z.array(z.string()),
-    env: z.record(z.string(), z.string()).optional()
-  }))
+  mcpServers: z.record(z.string(), z.union([
+    z.object({
+      command: z.string(),
+      args: z.array(z.string()),
+      env: z.record(z.string(), z.string()).optional()
+    }),
+    z.object({
+      url: z.string().url(),
+      env: z.record(z.string(), z.string()).optional()
+    })
+  ]))
 });
 
 export type RawConfig = z.infer<typeof ConfigSchema>;
 
-// Flattened configuration for internal use (Task 1.1 requirement)
+// Flattened configuration for internal use
 export interface ServerConfig {
   id: string;
-  command: string;
-  args: string[];
-  env?: Record<string, string>;
   tags: string[];
+  command?: string;
+  args?: string[];
+  url?: string;
+  env?: Record<string, string>;
 }
 
 /**
@@ -50,11 +58,20 @@ export function parseConfig(config: unknown): RawConfig {
       }
     }
 
-    mergedServers[id] = {
-      command: substituteEnv(server.command),
-      args: server.args.map(substituteEnv),
-      env: server.env ? newEnv : undefined
-    };
+    if ('url' in server) {
+      // SSE Config
+      mergedServers[id] = {
+        url: substituteEnv(server.url),
+        env: server.env ? newEnv : undefined
+      };
+    } else {
+      // Stdio Config
+      mergedServers[id] = {
+        command: substituteEnv(server.command),
+        args: server.args.map(substituteEnv),
+        env: server.env ? newEnv : undefined
+      };
+    }
   }
 
   return {

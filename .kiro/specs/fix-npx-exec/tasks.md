@@ -13,8 +13,11 @@
 
 - [x] 4. Fix Dependencies for Git Install
   - [x] 4.1 Move `typescript` and `@types/node` from `devDependencies` to `dependencies`
-    - This ensures build tools are available during `prepare` execution in all environments.
 
-- [x] 5. Validation
-  - [x] 5.1 Run `pnpm build`
-  - [x] 5.2 Test execution via `node dist/index.js`
+- [x] 5. Fix Entry Point Logic
+  - [x] 5.1 Remove conditional main check to support npx symlinks
+
+- [x] 6. Validation
+  - [x] 6.1 Run `pnpm build`
+  - [x] 6.2 Test execution via `node dist/index.js`
+  - [x] 6.3 Verify `npx github:...` works (User verified)

@@ -1,6 +1,8 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import type { ServerConfig } from '../config/schema.js';
+import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 
 export class UpstreamClient {
   public readonly id: string;
@@ -25,24 +27,36 @@ export class UpstreamClient {
 
   /**
    * Connects to the upstream server using the configured transport.
-   * Currently supports stdio.
+   * Supports stdio and sse.
    */
   async connect(): Promise<void> {
-    // Filter env to remove undefined values to satisfy Record<string, string>
-    const env: Record<string, string> = {};
-    const mergedEnv = { ...process.env, ...this.config.env };
-    
-    for (const [key, value] of Object.entries(mergedEnv)) {
-        if (value !== undefined) {
-            env[key] = value;
-        }
-    }
+    let transport: Transport;
 
-    const transport = new StdioClientTransport({
-      command: this.config.command,
-      args: this.config.args,
-      env
-    });
+    if (this.config.url) {
+      // SSE Transport
+      transport = new SSEClientTransport(new URL(this.config.url));
+    } else {
+      // Stdio Transport
+      // Filter env to remove undefined values to satisfy Record<string, string>
+      const env: Record<string, string> = {};
+      const mergedEnv = { ...process.env, ...this.config.env };
+      
+      for (const [key, value] of Object.entries(mergedEnv)) {
+          if (value !== undefined) {
+              env[key] = value;
+          }
+      }
+
+      if (!this.config.command) {
+          throw new Error(`Invalid configuration for server ${this.id}: 'command' is required for stdio transport.`);
+      }
+
+      transport = new StdioClientTransport({
+        command: this.config.command,
+        args: this.config.args,
+        env
+      });
+    }
 
     try {
       await this.client.connect(transport);

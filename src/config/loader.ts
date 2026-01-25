@@ -4,17 +4,6 @@ import * as os from 'os';
 import { parseConfig, type ServerConfig } from './schema.js';
 
 export class ConfigLoader {
-  // Method exposed for testing via instance if needed, or we can just test the logic via loadConfigs
-  // But to satisfy the test `new ConfigLoader()['getConfigDir']()`:
-  // I will make it an instance method or static?
-  // The test expects: const loader = new ConfigLoader(); loader['getConfigDir']()
-  // So I'll make it an instance method for internal logic or just public for testing.
-  // Actually, for the static loadConfigs, I can instantiate internally or just use a helper.
-  
-  // Let's implement it as a private method but accessible for the test wrapper if I change the test? 
-  // Or just make it protected/public.
-  // Since the test is already written to access it via `['getConfigDir']`, it implies it expects it to exist on the instance.
-  
   // Implementation:
   public getConfigDir(): string {
       const xdgConfigHome = process.env.XDG_CONFIG_HOME;
@@ -32,23 +21,9 @@ export class ConfigLoader {
     const servers: ServerConfig[] = [];
 
     try {
-      const entries = await fs.readdir(configDir, { withFileTypes: true }); // Mock in test might return strings or Dirents. 
-      // Test mocked readdir returning strings: ['config1.json', ...]. 
-      // fs.readdir(path) returns strings. fs.readdir(path, {withFileTypes:true}) returns Dirents.
-      // The test mocked: vi.mocked(fs.readdir).mockResolvedValue(['config1.json', ...] as any);
-      // So I should treat it as strings or handle the mock. 
-      // Safe bet: usage without withFileTypes returns strings.
-      
-      // Let's stick to simple readdir (strings) and stat to check isFile, as done in the test setup.
-      // Wait, test mocked fs.stat too.
-      // But readdir without options returns strings.
-      
-      // Real implementation:
-      // const files = await fs.readdir(configDir);
-      // But I should check if dir exists first?
-      // If readdir throws ENOENT, return [].
+      // If dir doesn't exist, return empty
+      await fs.readdir(configDir);
     } catch (error) {
-       // If dir doesn't exist, return empty
        return [];
     }
 
@@ -70,13 +45,24 @@ export class ConfigLoader {
 
         // Flatten servers
         for (const [id, server] of Object.entries(parsed.mcpServers)) {
-          const serverConfig: ServerConfig = {
-            id,
-            command: server.command,
-            args: server.args,
-            tags: fileTags,
-            ...(server.env ? { env: server.env } : {})
-          };
+          let serverConfig: ServerConfig;
+          
+          if ('url' in server) {
+             serverConfig = {
+                id,
+                tags: fileTags,
+                url: server.url,
+                ...(server.env ? { env: server.env } : {})
+             };
+          } else {
+             serverConfig = {
+                id,
+                tags: fileTags,
+                command: server.command,
+                args: server.args,
+                ...(server.env ? { env: server.env } : {})
+             };
+          }
 
           // Filter
           if (tagFilter && tagFilter.length > 0) {
@@ -88,7 +74,8 @@ export class ConfigLoader {
         }
 
       } catch (error) {
-        console.error(`Failed to load config file ${file}:`, error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error(`Failed to load config file ${file}: ${errorMessage}`);
         // Continue to next file
       }
     }
