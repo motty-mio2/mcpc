@@ -12,6 +12,7 @@ export const ConfigSchema = z.object({
     }),
     z.object({
       url: z.string().url(),
+      headers: z.record(z.string(), z.string()).optional(),
       env: z.record(z.string(), z.string()).optional()
     })
   ]))
@@ -26,6 +27,7 @@ export interface ServerConfig {
   command?: string;
   args?: string[];
   url?: string;
+  headers?: Record<string, string>;
   env?: Record<string, string>;
 }
 
@@ -60,8 +62,16 @@ export function parseConfig(config: unknown): RawConfig {
 
     if ('url' in server) {
       // SSE Config
+      const newHeaders: Record<string, string> = {};
+      if (server.headers) {
+        for (const [k, v] of Object.entries(server.headers)) {
+          newHeaders[k] = substituteEnv(v);
+        }
+      }
+
       mergedServers[id] = {
         url: substituteEnv(server.url),
+        headers: server.headers ? newHeaders : undefined,
         env: server.env ? newEnv : undefined
       };
     } else {

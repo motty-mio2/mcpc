@@ -34,7 +34,11 @@ export class UpstreamClient {
 
     if (this.config.url) {
       // SSE Transport
-      transport = new SSEClientTransport(new URL(this.config.url));
+      transport = new SSEClientTransport(new URL(this.config.url), {
+        eventSourceInit: {
+          headers: this.config.headers,
+        } as any
+      });
     } else {
       // Stdio Transport
       // Filter env to remove undefined values to satisfy Record<string, string>

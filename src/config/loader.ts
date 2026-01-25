@@ -52,6 +52,7 @@ export class ConfigLoader {
                 id,
                 tags: fileTags,
                 url: server.url,
+                ...(server.headers ? { headers: server.headers } : {}),
                 ...(server.env ? { env: server.env } : {})
              };
           } else {
