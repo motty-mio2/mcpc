@@ -75,7 +75,7 @@ export class ConfigLoader {
             command: server.command,
             args: server.args,
             tags: fileTags,
-            env: server.env
+            ...(server.env ? { env: server.env } : {})
           };
 
           // Filter
