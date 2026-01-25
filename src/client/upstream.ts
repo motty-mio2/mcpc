@@ -51,11 +51,15 @@ export class UpstreamClient {
           throw new Error(`Invalid configuration for server ${this.id}: 'command' is required for stdio transport.`);
       }
 
-      transport = new StdioClientTransport({
+      const params: any = {
         command: this.config.command,
-        args: this.config.args,
         env
-      });
+      };
+      if (this.config.args) {
+        params.args = this.config.args;
+      }
+
+      transport = new StdioClientTransport(params);
     }
 
     try {
