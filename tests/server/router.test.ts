@@ -34,20 +34,36 @@ describe('Router', () => {
     router = new Router([mockClient1, mockClient2]);
   });
 
-  it('aggregates tools from all clients with prefixes', async () => {
+  it('aggregates only native tools initially', async () => {
     const tools = await router.getAllTools();
     expect(tools).toHaveLength(2);
+    expect(tools.map(t => t.name)).toContain('mcp_search');
+    expect(tools.map(t => t.name)).toContain('mcp_enable');
+  });
+
+  it('aggregates tools from active clients with prefixes', async () => {
+    await router.dispatchCallTool('mcp_enable', { server_id: 'server1' });
+    await router.dispatchCallTool('mcp_enable', { server_id: 'server2' });
+
+    const tools = await router.getAllTools();
+    expect(tools).toHaveLength(4); // 2 native + 2 active
+    expect(tools.map(t => t.name)).toContain('mcp_search');
+    expect(tools.map(t => t.name)).toContain('mcp_enable');
     expect(tools.map(t => t.name)).toContain('server1_toolA');
     expect(tools.map(t => t.name)).toContain('server2_toolB');
   });
 
   it('handles partial failures during aggregation', async () => {
     mockClient2.listTools.mockRejectedValue(new Error('Failed'));
+    await router.dispatchCallTool('mcp_enable', { server_id: 'server1' });
+    await router.dispatchCallTool('mcp_enable', { server_id: 'server2' });
+
     const tools = await router.getAllTools();
     
-    // Should still return server1's tools
-    expect(tools).toHaveLength(1);
-    expect(tools[0]?.name).toBe('server1_toolA');
+    // Should still return server1's tools and native tools
+    expect(tools).toHaveLength(3);
+    expect(tools.find(t => t.name === 'server1_toolA')).toBeDefined();
+    expect(tools.find(t => t.name === 'server2_toolB')).toBeUndefined();
   });
 
   // Resources aggregation test (Task 3.2 mentions getAllResources)
@@ -58,6 +74,12 @@ describe('Router', () => {
       mockClient2.listResources.mockResolvedValue({ 
           resources: [{ uri: 'file:///b', name: 'resB' }] 
       });
+
+      const initialResources = await router.getAllResources();
+      expect(initialResources).toHaveLength(0);
+
+      await router.dispatchCallTool('mcp_enable', { server_id: 'server1' });
+      await router.dispatchCallTool('mcp_enable', { server_id: 'server2' });
 
       const resources = await router.getAllResources();
       expect(resources).toHaveLength(2);
@@ -70,6 +92,7 @@ describe('Router', () => {
       const mockResult = { content: [{ type: 'text', text: 'ok' }] };
       mockClient1.callTool.mockResolvedValue(mockResult);
 
+      await router.dispatchCallTool('mcp_enable', { server_id: 'server1' });
       const result = await router.dispatchCallTool('server1_toolA', { arg: 1 });
       
       expect(mockClient1.callTool).toHaveBeenCalledWith('toolA', { arg: 1 });

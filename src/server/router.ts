@@ -4,18 +4,22 @@ import type { Tool, Resource, Prompt, CallToolResult } from '@modelcontextprotoc
 
 export class Router {
   private clients: Map<string, UpstreamClient>;
+  private activeServers: Set<string>;
 
   constructor(clients: UpstreamClient[]) {
     this.clients = new Map(clients.map(c => [c.id, c]));
+    this.activeServers = new Set();
   }
 
   /**
-   * Aggregates tools from all upstream clients, prefixing their names.
-   * Handles partial failures by excluding failed servers.
+   * Aggregates tools from all active upstream clients, prefixing their names.
+   * Also includes mcpc's native tools: mcp_search and mcp_enable.
    */
   async getAllTools(): Promise<Tool[]> {
+    const activeClients = Array.from(this.clients.values()).filter(c => this.activeServers.has(c.id));
+
     const results = await Promise.allSettled(
-      Array.from(this.clients.values()).map(async (client) => {
+      activeClients.map(async (client) => {
         const response = await client.listTools();
         return {
           clientId: client.id,
@@ -24,7 +28,31 @@ export class Router {
       })
     );
 
-    const aggregatedTools: Tool[] = [];
+    const aggregatedTools: Tool[] = [
+      {
+        name: 'mcp_search',
+        description: 'Search for available upstream MCP servers to enable.',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+          required: []
+        }
+      },
+      {
+        name: 'mcp_enable',
+        description: 'Enable an upstream MCP server to use its tools, resources, and prompts.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            server_id: {
+              type: 'string',
+              description: 'The ID of the server to enable'
+            }
+          },
+          required: ['server_id']
+        }
+      }
+    ];
 
     for (const result of results) {
       if (result.status === 'fulfilled') {
@@ -45,11 +73,13 @@ export class Router {
   }
 
   /**
-   * Aggregates resources from all upstream clients, prefixing their names.
+   * Aggregates resources from all active upstream clients, prefixing their names.
    */
   async getAllResources(): Promise<Resource[]> {
+    const activeClients = Array.from(this.clients.values()).filter(c => this.activeServers.has(c.id));
+
     const results = await Promise.allSettled(
-      Array.from(this.clients.values()).map(async (client) => {
+      activeClients.map(async (client) => {
         const response = await client.listResources();
         return {
           clientId: client.id,
@@ -77,11 +107,13 @@ export class Router {
   }
 
   /**
-   * Aggregates prompts from all upstream clients, prefixing their names.
+   * Aggregates prompts from all active upstream clients, prefixing their names.
    */
   async getAllPrompts(): Promise<Prompt[]> {
+      const activeClients = Array.from(this.clients.values()).filter(c => this.activeServers.has(c.id));
+
       const results = await Promise.allSettled(
-          Array.from(this.clients.values()).map(async (client) => {
+          activeClients.map(async (client) => {
               const response = await client.listPrompts();
               return {
                   clientId: client.id,
@@ -109,9 +141,38 @@ export class Router {
   }
 
   /**
-   * Dispatches a callTool request to the appropriate upstream client.
+   * Dispatches a callTool request to the appropriate upstream client or handles native tools.
    */
   async dispatchCallTool(prefixedName: string, args: any): Promise<CallToolResult> {
+    if (prefixedName === 'mcp_search') {
+      const servers = Array.from(this.clients.keys());
+      return {
+        content: [{
+          type: 'text',
+          text: `Available MCP servers:\n${servers.map(s => `- ${s}${this.activeServers.has(s) ? ' (active)' : ''}`).join('\n')}\n\nUse the 'mcp_enable' tool with a server ID to activate its features.`
+        }]
+      };
+    }
+
+    if (prefixedName === 'mcp_enable') {
+      const serverId = args?.server_id;
+      if (!serverId || typeof serverId !== 'string') {
+        throw new Error('server_id string argument is required for mcp_enable');
+      }
+
+      if (!this.clients.has(serverId)) {
+        throw new Error(`Unknown server ID: ${serverId}`);
+      }
+
+      this.activeServers.add(serverId);
+      return {
+        content: [{
+          type: 'text',
+          text: `Server '${serverId}' has been activated. Its tools, resources, and prompts are now available.`
+        }]
+      };
+    }
+
     const target = NamespaceUtils.stripPrefix(prefixedName);
     if (!target) {
       throw new Error(`Invalid tool name format: ${prefixedName}`);
@@ -120,6 +181,10 @@ export class Router {
     const client = this.clients.get(target.serverId);
     if (!client) {
       throw new Error(`Unknown server prefix: ${target.serverId}`);
+    }
+
+    if (!this.activeServers.has(target.serverId)) {
+      throw new Error(`Server '${target.serverId}' is not active. Enable it first using mcp_enable.`);
     }
 
     return (await client.callTool(target.name, args)) as CallToolResult;
